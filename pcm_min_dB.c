@@ -1,5 +1,6 @@
 #include<alsa/asoundlib.h>
 #include<math.h>
+#include <time.h>
 
 static char *device = "default";	/* device name */
 
@@ -39,7 +40,7 @@ double rms(short *buffer)
 int main(void)
 {
 	int err;
-	unsigned int i;
+	time_t start,stop;
 
 	snd_pcm_t *handle_capture;	/* handle of capture */
 
@@ -61,8 +62,6 @@ int main(void)
 		printf("Capture open error: %s\n", snd_strerror(err));
 		exit(EXIT_FAILURE);
 	}
-	printf("             ");
-	fflush(stdout);
 
 	/*
 	 * Formula of dB is 20log((Sound Pressure)/P0)
@@ -73,10 +72,10 @@ int main(void)
 	double Pvalue = 0;
 	int dB = 0;
 	int peak = 0;
-	i=0;
 
 	// Capture
-	while(i<50) {
+	start = time(NULL);
+	while(1) {
 		frames = snd_pcm_readi(handle_capture, buffer, buffer_size);
 		if(frames < 0)
 			frames = snd_pcm_recover(handle_capture, frames, 0);
@@ -89,14 +88,15 @@ int main(void)
 		Pvalue = rms(buffer) * k;
 
 		dB = (int)20*log10(Pvalue);
-		if(dB > peak)
-			peak = dB;
-		int j;
-		for(j=0; j<20; j++)
-			printf("\b");
-		fflush(stdout);
-		printf("dB=%4d,Peak=%4d", dB, peak);
-		fflush(stdout);
+                if(dB > peak)
+                        peak = dB;
+		stop = time(NULL);
+		double diff = difftime(stop, start);
+		if (diff >= 60) {
+			printf("dB peak=%d\n", peak);
+			peak = 0;
+    			start = time(NULL);
+    		}
 	}
 	printf("\n");
 	snd_pcm_close(handle_capture);
