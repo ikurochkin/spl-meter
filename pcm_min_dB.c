@@ -2,7 +2,7 @@
 #include<math.h>
 #include <time.h>
 
-static char *device = "default";	/* device name */
+static char *device = "default";  /* device name */
 
 /*
    Each sample is a 16-bit signed integer, which means
@@ -28,77 +28,78 @@ int buffer_size = sizeof(buffer)>>1;
 */
 double rms(short *buffer)
 {
-	int i;
-	long int square_sum = 0.0;
-	for(i=0; i<buffer_size; i++)
-		square_sum += (buffer[i] * buffer[i]);
+  int i;
+  long int square_sum = 0.0;
+  for(i=0; i<buffer_size; i++)
+    square_sum += (buffer[i] * buffer[i]);
 
-	double result = sqrt(square_sum/buffer_size);
-	return result;
+  double result = sqrt(square_sum/buffer_size);
+  return result;
 }
 
 int main(void)
 {
-	int err;
-	time_t start,stop;
+  int err;
+  time_t start,stop;
 
-	snd_pcm_t *handle_capture;	/* handle of capture */
+  snd_pcm_t *handle_capture;  /* handle of capture */
 
-	snd_pcm_sframes_t frames;
+  snd_pcm_sframes_t frames;
 
-	// Open handle of capture
-	if((err=snd_pcm_open(&handle_capture, device, SND_PCM_STREAM_CAPTURE, 0)) < 0) {
-		printf("Capture open error: %s\n", snd_strerror(err));
-		exit(EXIT_FAILURE);
-	}
+  // Open handle of capture
+  if((err=snd_pcm_open(&handle_capture, device, SND_PCM_STREAM_CAPTURE, 0)) < 0) {
+    printf("Capture open error: %s\n", snd_strerror(err));
+    exit(EXIT_FAILURE);
+  }
 
-	if((err = snd_pcm_set_params(handle_capture,
-				     SND_PCM_FORMAT_S16_LE,
-				     SND_PCM_ACCESS_RW_INTERLEAVED,
-				     1,
-				     48000,
-				     1,
-				     500000)) < 0) {	/* 0.5s */
-		printf("Capture open error: %s\n", snd_strerror(err));
-		exit(EXIT_FAILURE);
-	}
+  if((err = snd_pcm_set_params(handle_capture,
+             SND_PCM_FORMAT_S16_LE,
+             SND_PCM_ACCESS_RW_INTERLEAVED,
+             1,
+             48000,
+             1,
+             500000)) < 0) {  /* 0.5s */
+    printf("Capture open error: %s\n", snd_strerror(err));
+    exit(EXIT_FAILURE);
+  }
 
-	/*
-	 * Formula of dB is 20log((Sound Pressure)/P0)
-	   Assume that (Sound Pressure/P0) = k * sample value (Linear!),
-	   and by experiment, we found that k = 0.45255.
-	*/
-	double k = 0.45255;
-	double Pvalue = 0;
-	int dB = 0;
-	int peak = 0;
+  /*
+   * Formula of dB is 20log((Sound Pressure)/P0)
+     Assume that (Sound Pressure/P0) = k * sample value (Linear!),
+     and by experiment, we found that k = 0.45255.
+  */
+  double k = 0.45255;
+  double Pvalue = 0;
+  int dB = 0;
+  int peak = 0;
 
-	// Capture
-	start = time(NULL);
-	while(1) {
-		frames = snd_pcm_readi(handle_capture, buffer, buffer_size);
-		if(frames < 0)
-			frames = snd_pcm_recover(handle_capture, frames, 0);
-		if(frames < 0) {
-			printf("snd_pcm_readi failed: %s\n", snd_strerror(err));
-		}
-		if(frames > 0 && frames < (long)buffer_size)
-			printf("Short read (expected %li, wrote %li)\n", (long)buffer_size, frames);
+  // Capture
+  start = time(NULL);
+  while(1) {
+    frames = snd_pcm_readi(handle_capture, buffer, buffer_size);
+    if(frames < 0)
+      frames = snd_pcm_recover(handle_capture, frames, 0);
+    if(frames < 0) {
+      printf("snd_pcm_readi failed: %s\n", snd_strerror(err));
+    }
+    if(frames > 0 && frames < (long)buffer_size)
+      printf("Short read (expected %li, wrote %li)\n", (long)buffer_size, frames);
 
-		Pvalue = rms(buffer) * k;
+    Pvalue = rms(buffer) * k;
 
-		dB = (int)20*log10(Pvalue);
-                if(dB > peak)
-                        peak = dB;
-		stop = time(NULL);
-		double diff = difftime(stop, start);
-		if (diff >= 60) {
-			printf("dB peak=%d\n", peak);
-			peak = 0;
-    			start = time(NULL);
-    		}
-	}
-	printf("\n");
-	snd_pcm_close(handle_capture);
-	return 0;
+    dB = (int)20*log10(Pvalue);
+    if(dB > peak)
+      peak = dB;
+
+    stop = time(NULL);
+    double diff = difftime(stop, start);
+    if (diff >= 60) {
+      printf("dB peak=%d\n", peak);
+      peak = 0;
+      start = time(NULL);
+    }
+  }
+  printf("\n");
+  snd_pcm_close(handle_capture);
+  return 0;
 }
