@@ -94,7 +94,8 @@ int main(void)
     stop = time(NULL);
     double diff = difftime(stop, start);
     if (diff >= 60) {
-      printf("dB peak=%d\n", peak);
+      printf("%d\n", peak);
+      fflush(stdout);
       peak = 0;
       start = time(NULL);
     }
